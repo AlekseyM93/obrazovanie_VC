@@ -1,43 +1,69 @@
-# Tutor Platform MVP
+# Tutor Platform
 
-MVP-платформа для репетиторов и учеников на **Next.js + TypeScript + Prisma + PostgreSQL + LiveKit + S3/MinIO**.
+Production-oriented платформа для репетиторов и учеников: уроки, видеокомнаты, материалы и записи.
 
-## Что уже заложено
+## Основные возможности
 
-- роли: tutor / student / admin
-- онлайн-комнаты для уроков
-- выдача LiveKit токена для видеоконференции
-- заготовка под запись уроков и обработку webhook
-- база знаний с загрузкой файлов в S3/MinIO
-- интерактивная доска в интерфейсе урока
-- Prisma-схема для дальнейшего расширения
-- готовый промт для Cursor
+- Auth.js аутентификация с Prisma Adapter
+- Регистрация/вход по email и password
+- Роли пользователей: `ADMIN`, `TUTOR`, `STUDENT`
+- Защищенные маршруты для `dashboard` и `rooms`
+- Видеокомната на LiveKit (камера/микрофон/screen share)
+- База знаний с загрузкой файлов в S3/MinIO
+- Базовый welcome-лендинг
+- Переключение темы: dark/light
 
-## Почему такой стек
+## Технологии
 
-- **Next.js App Router** удобно использовать как fullstack-приложение с UI и backend route handlers. Официальная документация рекомендует route handlers внутри `app` для HTTP-обработчиков. citeturn730246search1turn730246search10
-- **Prisma + PostgreSQL** дают типобезопасный доступ к данным и удобные миграции для Next.js-проектов. citeturn730246search2turn730246search8turn730246search20
-- **LiveKit** подходит для комнат, screen share и записи. В документации есть room service, screen sharing, webhooks и egress API для записи комнат. citeturn730246search15turn730246search21turn730246search12turn730246search3
+- Next.js (App Router)
+- TypeScript
+- Prisma + PostgreSQL
+- Auth.js v5 (beta) + `@auth/prisma-adapter`
+- LiveKit (`livekit-client`, `livekit-server-sdk`)
+- S3/MinIO (`@aws-sdk/client-s3`)
+- Tailwind CSS v4
 
-## Быстрый запуск
+## Структура проекта
+
+- `app/` — страницы, route handlers, auth pages
+- `components/` — UI-компоненты (forms, room, whiteboard, theme toggle)
+- `lib/` — сервисные модули (`auth`, `db`, `livekit`, `s3`)
+- `prisma/` — схема БД, миграции, seed
+- `types/` — расширения типов (например, `next-auth`)
+- `proxy.ts` — защита маршрутов и редиректы auth
+
+## Быстрый старт
+
+### 1) Подготовка окружения
 
 ```bash
 cp .env.example .env
 docker compose up -d
 npm install
+```
+
+### 2) Инициализация БД
+
+```bash
 npx prisma generate
-npx prisma migrate dev --name auth_init
+npx prisma migrate dev --name init
 npm run db:seed
+```
+
+### 3) Запуск приложения
+
+```bash
 npm run dev
 ```
 
-## Что открыть
+## URL для проверки
 
-- главная: `http://localhost:3000`
-- дашборд: `http://localhost:3000/dashboard`
-- тестовая комната: `http://localhost:3000/rooms/demo-room`
-- login: `http://localhost:3000/auth/login`
-- MinIO console: `http://localhost:9001`
+- App: `http://localhost:3000`
+- Login: `http://localhost:3000/auth/login`
+- Register: `http://localhost:3000/auth/register`
+- Dashboard: `http://localhost:3000/dashboard`
+- Demo room: `http://localhost:3000/rooms/demo-room`
+- MinIO Console: `http://localhost:9001`
 
 ## Демо-аккаунты
 
@@ -45,16 +71,53 @@ npm run dev
 - `tutor@tutor.local` / `TutorPass123`
 - `student@tutor.local` / `StudentPass123`
 
-## Что нужно доделать в Cursor
+## Важные npm scripts
 
-1. Подключить настоящую аутентификацию через Auth.js / Clerk / Supabase Auth.
-2. Сделать нормальное управление пользователями и доступом.
-3. Реализовать создание уроков из БД, а не через мок.
-4. Подключить реальную запись через LiveKit Egress и хранение видео в S3.
-5. Добавить чат, календарь, домашки, уведомления, оплату.
-6. Заменить простую whiteboard-заглушку на полноценную доску (например, tldraw или Excalidraw).
-7. Сделать продакшн-деплой: HTTPS, Redis, jobs, background workers, monitoring.
+- `npm run dev` — запуск dev-сервера (`next dev --webpack`)
+- `npm run build` — production build
+- `npm run start` — запуск production build
+- `npm run prisma:generate` — генерация Prisma Client
+- `npm run prisma:migrate` — создание и применение миграции
+- `npm run db:push` — push схемы в БД (без миграции)
+- `npm run db:seed` — заполнение БД тестовыми пользователями
 
-## Статус
+## Конфигурация окружения
 
-Это **сильный стартовый каркас**, а не полностью законченный Zoom-клон. Он специально подготовлен так, чтобы ты мог быстро продолжить разработку в Cursor.
+Минимально важные переменные:
+
+- `DATABASE_URL`
+- `AUTH_SECRET`
+- `AUTH_URL`
+- `LIVEKIT_API_KEY`
+- `LIVEKIT_API_SECRET`
+- `LIVEKIT_WS_URL`
+- `S3_ENDPOINT`
+- `S3_BUCKET`
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+
+Полный шаблон смотри в `.env.example`.
+
+## Частые проблемы
+
+### 1) Turbopack panic на Windows (path too long)
+
+Проект уже переведен на Webpack в `npm run dev` (`next dev --webpack`), чтобы избежать падения на длинных путях.
+
+### 2) lock-файл `.next/dev/lock`
+
+Если видишь `Unable to acquire lock`, останови старые `next dev` процессы и удали `.next/dev`.
+
+### 3) Предупреждения Docker Compose про `version`
+
+Это warning, не блокирует запуск. Можно убрать `version` из `docker-compose.yml` позже.
+
+### 4) Prisma warning про `package.json#prisma`
+
+Текущая конфигурация рабочая. Позже можно мигрировать на `prisma.config.ts` (актуально для Prisma 7+).
+
+## Текущий статус
+
+Сейчас это крепкий рабочий baseline для дальнейшего развития продукта.  
+Следующие этапы: полноценный CRUD уроков, связи `Lesson <-> Room`, запись через LiveKit Egress, развитая база знаний, real-time whiteboard collaboration, UX hardening и observability.
+
